@@ -1,0 +1,8 @@
+2025-12-19 00:32:46,710 - INFO - Iniciando analyzer mejorado
+2025-12-19 00:32:46,712 - INFO - Cargando datos desde data/supergana.db
+2025-12-19 00:32:46,736 - ERROR - Tabla supergana_resultados no encontrada en data/supergana.db
+2025-12-19 00:32:46,736 - ERROR - No hay datos para analizar
+2025-12-19 00:35:26,926 - INFO - Iniciando analyzer mejorado
+2025-12-19 00:35:26,927 - INFO - Cargando datos desde data/supergana.db
+2025-12-19 00:35:26,950 - ERROR - Tabla supergana_resultados no encontrada en data/supergana.db
+2025-12-19 00:35:26,950 - ERROR - No hay datos para analizar

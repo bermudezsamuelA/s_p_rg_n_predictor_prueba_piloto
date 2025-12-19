@@ -1,0 +1,4 @@
+2025-12-19 00:35:51,460 - INFO - Iniciando analyzer Triple Gana
+2025-12-19 00:35:51,461 - INFO - Cargando datos desde data/triplegana.db
+2025-12-19 00:35:51,463 - ERROR - Tabla triplegana_resultados no encontrada en data/triplegana.db
+2025-12-19 00:35:51,464 - ERROR - No hay datos para analizar
