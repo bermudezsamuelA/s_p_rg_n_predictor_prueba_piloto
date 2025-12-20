@@ -1,6 +1,6 @@
 """
 analyzer_triplegana.py — Analyzer optimizado para Triple Gana
-Características: CONFIG tipado, logging, headless, exportación de resúmenes,
+Mejoras: CONFIG tipado, logging, headless, exportación de resúmenes,
 validaciones estadísticas, visualizaciones y dataset ML.
 """
 
@@ -8,7 +8,7 @@ import sqlite3
 from pathlib import Path
 from dataclasses import dataclass, asdict
 from typing import Optional, Dict, Any, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 import json
 
@@ -32,7 +32,7 @@ except Exception:
 @dataclass
 class TripleganaConfig:
     db_path: str = 'data/triplegana.db'
-    table_name: str = 'triplegana_resultados'   # coincide con db.py mejorado
+    table_name: str = 'triplegana_resultados'
     output_dir: str = 'data/analysis_triplegana'
     figures_dir: str = 'data/analysis_triplegana/figures'
     headless: bool = True
@@ -45,6 +45,7 @@ class TripleganaConfig:
     export_summaries: bool = True
     display_top_n: int = 20
     log_level: str = 'INFO'
+    feature_columns: Tuple = ('hora_num', 'dia_semana', 'mes', 'suma_digitos', 'paridad', 'signo_cod', 'dias_desde_inicio')
 
 CONFIG = TripleganaConfig()
 Path(CONFIG.output_dir).mkdir(parents=True, exist_ok=True)
@@ -104,28 +105,46 @@ def preparar_datos(df: pd.DataFrame, config: TripleganaConfig = CONFIG) -> Optio
         return None
 
     df = df.copy()
+
     # Fecha
+    df['fecha_raw'] = df.get('fecha')
     df['fecha'] = pd.to_datetime(df['fecha'], dayfirst=True, errors='coerce')
+
     # Hora vectorizada (maneja 12am/12pm)
     s = df['hora'].astype(str).str.lower().str.strip()
     is_pm = s.str.contains('pm', na=False)
     is_am = s.str.contains('am', na=False)
-    horas = s.str.extract(r'(\d+)')[0].astype(float)
-    horas = horas.fillna(-1)
-    horas = horas.astype(float)
-    horas[(is_pm) & (horas != 12)] = horas[(is_pm) & (horas != 12)] + 12
-    horas[(is_am) & (horas == 12)] = 0
+    horas = s.str.extract(r'(\d+)')[0]
+    horas = pd.to_numeric(horas, errors='coerce')
+    horas = horas.fillna(-1).astype(float)
+    # aplicar transformaciones vectorizadas con cuidado de NaNs
+    mask_pm = is_pm & (horas != 12)
+    mask_am_12 = is_am & (horas == 12)
+    horas.loc[mask_pm] = horas.loc[mask_pm] + 12
+    horas.loc[mask_am_12] = 0
     df['hora_num'] = horas.fillna(-1).astype(int)
 
     # Número y validaciones
     df['numero'] = pd.to_numeric(df['numero'], errors='coerce')
     before = len(df)
+
+    # Exportar filas descartadas por columnas críticas antes de dropear
+    invalid_mask = df[['fecha', 'numero', 'hora', 'signo']].isna().any(axis=1)
+    if invalid_mask.any():
+        discarded = df[invalid_mask].copy()
+        discarded_path = Path(config.output_dir) / 'filas_descartadas_triplegana.csv'
+        discarded.to_csv(discarded_path, index=False, encoding='utf-8')
+        logger.info("Filas descartadas exportadas a %s (count=%d)", discarded_path, len(discarded))
+
     df = df.dropna(subset=['fecha', 'numero', 'hora', 'signo'])
     dropped = before - len(df)
     if dropped:
         logger.info("Filas descartadas por datos inválidos: %d", dropped)
 
+    # Asegurar entero
     df['numero'] = df['numero'].astype(int)
+
+    # Features
     df['ultimo_digito'] = df['numero'] % 10
     df['penultimo_digito'] = (df['numero'] // 10) % 10
     df['suma_digitos'] = df['numero'].astype(str).apply(lambda s: sum(int(c) for c in s))
@@ -133,11 +152,39 @@ def preparar_datos(df: pd.DataFrame, config: TripleganaConfig = CONFIG) -> Optio
     df['signo'] = df['signo'].astype(str)
     df['signo_cod'] = pd.factorize(df['signo'])[0].astype('int8')
 
-    # Rangos y temporales
-    bins_fijos = list(range(0, 10001, 1000))
-    labels_fijos = [f'{i}-{i+999}' for i in range(0, 9000, 1000)]
-    df['rango_mil'] = pd.cut(df['numero'], bins=bins_fijos, labels=labels_fijos, right=False)
+    # Validación antes de crear rangos
+    if df['numero'].isna().any():
+        logger.warning("Existen valores NaN en 'numero' antes de crear rangos; serán descartados o imputados.")
 
+    # Rangos por mil (robusto, dinámico según datos)
+    try:
+        min_num = int(df['numero'].min())
+        max_num = int(df['numero'].max())
+        # Redondear límites a múltiplos de 1000
+        min_bin = (min_num // 1000) * 1000
+        top = ((max_num // 1000) + 1) * 1000
+        # Evitar bins vacíos si min==max
+        if top <= min_bin:
+            top = min_bin + 1000
+        bins_fijos = list(range(min_bin, top + 1, 1000))
+        labels_fijos = [f'{bins_fijos[i]}-{bins_fijos[i+1]-1}' for i in range(len(bins_fijos)-1)]
+
+        logger.debug("bins_fijos: %s", bins_fijos)
+        logger.debug("labels_fijos: %s", labels_fijos)
+
+        df['rango_mil'] = pd.cut(df['numero'],
+                                 bins=bins_fijos,
+                                 labels=labels_fijos,
+                                 right=False,
+                                 include_lowest=True)
+
+        # Marcar valores fuera de rango (NaN) con etiqueta 'out_of_range'
+        df['rango_mil'] = df['rango_mil'].cat.add_categories(['out_of_range']).fillna('out_of_range')
+    except Exception as e:
+        logger.exception("Error creando rango_mil dinámico: %s", e)
+        df['rango_mil'] = 'out_of_range'
+
+    # Temporales
     df['año'] = df['fecha'].dt.year
     df['mes'] = df['fecha'].dt.month
     df['dia_mes'] = df['fecha'].dt.day
@@ -296,16 +343,19 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
 def crear_dataset_ml(df: pd.DataFrame, config: TripleganaConfig = CONFIG, test_size: float = 0.2):
-    features = ['hora_num', 'dia_semana', 'mes', 'suma_digitos', 'paridad', 'signo_cod', 'dias_desde_inicio']
+    features = list(config.feature_columns)
     X = df[features].fillna(0)
     if config.ml_target == 'ultimo_digito':
         y = df['ultimo_digito'].astype(int)
     elif config.ml_target == 'rango_mil':
+        # asegurar que rango_mil exista y sea categórica
+        if 'rango_mil' not in df.columns:
+            raise ValueError("rango_mil no existe en el DataFrame. Ejecuta preparar_datos primero.")
         y = df['rango_mil'].astype('category').cat.codes
     else:
         y = df['numero'].astype(int)
 
-    stratify = y if len(y.unique()) > 1 else None
+    stratify = y if len(np.unique(y)) > 1 else None
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=config.random_state, stratify=stratify)
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
@@ -318,7 +368,7 @@ def crear_dataset_ml(df: pd.DataFrame, config: TripleganaConfig = CONFIG, test_s
 # -------------------------
 def main():
     logger.info("Iniciando analyzer Triple Gana")
-    start = datetime.utcnow().isoformat()
+    start = datetime.now(timezone.utc).isoformat()
     df = cargar_datos(CONFIG)
     if df is None or df.empty:
         logger.error("No hay datos para analizar")
@@ -334,7 +384,7 @@ def main():
 
     meta = {
         'timestamp_start': start,
-        'timestamp_end': datetime.utcnow().isoformat(),
+        'timestamp_end': datetime.now(timezone.utc).isoformat(),
         'records': len(df_prepared),
         'config': asdict(CONFIG),
         'summary': {

@@ -51,7 +51,14 @@ def obtener_html(fecha_str, max_reintentos=3):
     return None
 
 def extraer_resultados(html, fecha_str):
-    """Parsea el HTML y devuelve resultados válidos."""
+    """Parsea el HTML y devuelve resultados válidos de Super Gana.
+
+    Cambios clave:
+    - Acepta cualquier número numérico entre 0 y 10000 (1-5 dígitos).
+    - Toma el primer <td> (índice 0) después del <th> de la fila (Super Gana).
+    - Extrae el primer <h3 class='ger'> numérico y la imagen de signo dentro del mismo <td>.
+    - Descarta filas sin signo válido (manteniendo NOT NULL en la DB).
+    """
     if not html:
         return []
     
@@ -60,31 +67,47 @@ def extraer_resultados(html, fecha_str):
     horas_validas = {'1 pm', '4 pm', '10 pm'}
     
     for fila in soup.find_all('th', scope='row'):
-        hora = fila.text.strip().lower()
+        hora = fila.get_text(strip=True).lower()
         if hora not in horas_validas:
             continue
         
+        # Primer <td> corresponde a Super Gana según tu HTML
         td = fila.find_next_sibling('td')
         if not td:
             continue
         
-        numero_tag = td.find('h3', class_='ger')
+        # Buscar el primer <h3 class='ger'> que contenga dígitos (evitar capturar '+')
+        numero_tag = None
+        for h in td.find_all('h3', class_='ger'):
+            text = h.get_text(strip=True)
+            if text and text.isdigit():
+                numero_tag = h
+                break
+
         if not numero_tag:
             continue
-        
-        numero = numero_tag.text.strip()
-        if not numero.isdigit() or len(numero) != 4:
+
+        numero_text = numero_tag.get_text(strip=True)
+        # Convertir a entero y validar rango lógico (0..10000)
+        try:
+            numero_int = int(numero_text)
+        except ValueError:
             continue
-        
+
+        if numero_int < 0 or numero_int > 10000:
+            continue
+
+        # Extraer signo desde la misma celda (la imagen del signo)
+        signo = None
         signo_img = td.find('img')
-        if not signo_img or 'src' not in signo_img.attrs:
+        if signo_img and 'src' in signo_img.attrs:
+            signo = signo_img['src'].split('/')[-1].replace('.jpg', '').upper()
+
+        # Si no hay signo válido, descartamos (tu esquema exige signo NOT NULL)
+        if not signo or signo == 'PPP':
             continue
-        
-        signo = signo_img['src'].split('/')[-1].replace('.jpg', '').upper()
-        if signo == 'PPP' or len(signo) != 3:
-            continue
-        
-        resultados.append({'hora': hora, 'numero': numero, 'signo': signo})
+
+        resultados.append({'hora': hora, 'numero': str(numero_int), 'signo': signo})
     
     return resultados
 

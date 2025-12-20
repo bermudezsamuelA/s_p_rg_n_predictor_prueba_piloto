@@ -51,7 +51,16 @@ def obtener_html(fecha_str, max_reintentos=3):
     return None
 
 def extraer_resultados(html, fecha_str):
-    """Parsea el HTML y devuelve resultados válidos de Triple Gana."""
+    """Parsea el HTML y devuelve resultados válidos de Triple Gana.
+
+    Reglas aplicadas:
+    - Solo horas válidas: '1 pm', '4 pm', '10 pm'
+    - Se toma el segundo <td> de la fila (<td> index 1)
+    - Se extrae el primer <h3 class='ger'> que contenga dígitos (evita capturar '+')
+    - Acepta cualquier número numérico (0..10000), se valida rango y se convierte a int
+    - Se extrae la imagen de signo dentro del mismo <td> y se normaliza (sin '.jpg', en mayúsculas)
+    - Si no hay signo válido se descarta (la tabla exige signo NOT NULL)
+    """
     if not html:
         return []
     
@@ -59,33 +68,56 @@ def extraer_resultados(html, fecha_str):
     resultados = []
     horas_validas = {'1 pm', '4 pm', '10 pm'}
     
-    for fila in soup.find_all('th', scope='row'):
-        hora = fila.text.strip().lower()
+    # Iterar por cada <th scope='row'> que marca la hora y procesar su <tr> completo
+    for th in soup.find_all('th', scope='row'):
+        hora = th.get_text(strip=True).lower()
         if hora not in horas_validas:
             continue
-        
-        td_super = fila.find_next_sibling('td')
-        td_triple = td_super.find_next_sibling('td') if td_super else None
-        if not td_triple:
+
+        tr = th.find_parent('tr')
+        if tr is None:
             continue
-        
-        numero_tag = td_triple.find('h3', class_='ger')
+
+        tds = tr.find_all('td')
+        # El segundo <td> (index 1) corresponde a Triplegana según tu HTML
+        if len(tds) < 2:
+            continue
+
+        td_triple = tds[1]
+
+        # Buscar el primer <h3 class='ger'> que contenga dígitos (evitar capturar '+')
+        numero_tag = None
+        for h in td_triple.find_all('h3', class_='ger'):
+            text = h.get_text(strip=True)
+            if text and text.isdigit():
+                numero_tag = h
+                break
+
         if not numero_tag:
+            # No hay número numérico en esa celda
             continue
-        
-        numero = numero_tag.text.strip()
-        if not numero.isdigit() or len(numero) != 4:
+
+        numero_text = numero_tag.get_text(strip=True)
+        # Convertir a entero y validar rango lógico (0..10000)
+        try:
+            numero_int = int(numero_text)
+        except ValueError:
             continue
-        
+
+        if numero_int < 0 or numero_int > 10000:
+            continue
+
+        # Extraer signo desde la misma celda (la imagen del signo)
+        signo = None
         signo_img = td_triple.find('img')
-        if not signo_img or 'src' not in signo_img.attrs:
+        if signo_img and 'src' in signo_img.attrs:
+            signo = signo_img['src'].split('/')[-1].replace('.jpg', '').upper()
+
+        # Si no hay signo válido, descartamos (tu esquema exige signo NOT NULL)
+        if not signo or signo == 'PPP':
             continue
-        
-        signo = signo_img['src'].split('/')[-1].replace('.jpg', '').upper()
-        if signo == 'PPP' or len(signo) != 3:
-            continue
-        
-        resultados.append({'hora': hora, 'numero': numero, 'signo': signo})
+
+        resultados.append({'hora': hora, 'numero': str(numero_int), 'signo': signo})
     
     return resultados
 

@@ -10,7 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 import json
 import os
@@ -45,6 +45,8 @@ class AnalyzerConfig:
     export_summaries: bool = True
     display_top_n: int = 20
     log_level: str = 'INFO'
+    feature_columns: Tuple = ('hora_num', 'dia_semana', 'mes', 'dia_mes',
+                              'suma_digitos', 'paridad', 'signo_cod', 'dias_desde_inicio')
 
 CONFIG = AnalyzerConfig()
 Path(CONFIG.output_dir).mkdir(parents=True, exist_ok=True)
@@ -111,18 +113,17 @@ def preparar_datos(df: pd.DataFrame, config: AnalyzerConfig = CONFIG) -> Optiona
     df['fecha'] = pd.to_datetime(df['fecha'], dayfirst=True, errors='coerce')
     df['numero'] = pd.to_numeric(df['numero'], errors='coerce')
     before = len(df)
+    # Guardar snapshot de filas con problemas para auditoría
+    invalid_mask = df[['fecha', 'numero', 'hora', 'signo']].isna().any(axis=1)
+    if invalid_mask.any():
+        discarded = df[invalid_mask].copy()
+        discarded_path = Path(config.output_dir) / 'filas_descartadas.csv'
+        discarded.to_csv(discarded_path, index=False, encoding='utf-8')
+        logger.info("Filas descartadas exportadas a %s (count=%d)", discarded_path, len(discarded))
     df = df.dropna(subset=['fecha', 'numero', 'hora', 'signo'])
     dropped = before - len(df)
     if dropped:
         logger.info("Filas descartadas por tipos inválidos: %d", dropped)
-        # Exportar filas descartadas para auditoría
-        discarded = df[df.isnull().any(axis=1)]
-        discarded_path = Path(config.output_dir) / 'filas_descartadas.csv'
-        # If there were rows dropped earlier, we saved them before drop; create a safe export
-        # Recompute discarded from original
-        # (we saved original in df_copy above)
-        # For simplicity, export rows that had NaNs in required columns from original
-        # Reconstruct original from before copy is not available here; user can rerun if needed.
 
     # Hora: parseo robusto
     def parse_hora(h):
@@ -150,10 +151,35 @@ def preparar_datos(df: pd.DataFrame, config: AnalyzerConfig = CONFIG) -> Optiona
     df['signo'] = df['signo'].astype(str)
     df['signo_cod'] = pd.factorize(df['signo'])[0].astype('int8')
 
-    # Rangos por mil
-    bins_fijos = list(range(0, 10001, 1000))
-    labels_fijos = [f'{i}-{i+999}' for i in range(0, 9000, 1000)]
-    df['rango_mil'] = pd.cut(df['numero'].astype(int), bins=bins_fijos, labels=labels_fijos, right=False)
+    # Validación antes de crear rangos
+    if df['numero'].isna().any():
+        logger.warning("Existen valores NaN en 'numero' antes de crear rangos; serán descartados o imputados.")
+
+    # Rangos por mil (robusto, dinámico según datos)
+    try:
+        min_num = int(df['numero'].min())
+        max_num = int(df['numero'].max())
+        # Redondear límites a múltiplos de 1000
+        min_bin = (min_num // 1000) * 1000
+        top = ((max_num // 1000) + 1) * 1000
+        bins_fijos = list(range(min_bin, top + 1, 1000))
+        labels_fijos = [f'{bins_fijos[i]}-{bins_fijos[i+1]-1}' for i in range(len(bins_fijos)-1)]
+
+        logger.debug(f"bins_fijos: {bins_fijos}")
+        logger.debug(f"labels_fijos: {labels_fijos}")
+
+        df['rango_mil'] = pd.cut(df['numero'].astype(int),
+                                 bins=bins_fijos,
+                                 labels=labels_fijos,
+                                 right=False,
+                                 include_lowest=True)
+
+        # Opcional: marcar valores fuera de rango (NaN) con etiqueta 'out_of_range'
+        df['rango_mil'] = df['rango_mil'].cat.add_categories(['out_of_range']).fillna('out_of_range')
+    except Exception as e:
+        logger.exception("Error creando rango_mil dinámico: %s", e)
+        # Fallback simple: asignar out_of_range a todos si falla
+        df['rango_mil'] = 'out_of_range'
 
     # Temporales
     df['año'] = df['fecha'].dt.year
@@ -167,9 +193,6 @@ def preparar_datos(df: pd.DataFrame, config: AnalyzerConfig = CONFIG) -> Optiona
     df.to_csv(out_path, index=False, encoding='utf-8')
     logger.info("Datos preparados guardados en %s", out_path)
 
-    # Exportar filas descartadas (si las hubo)
-    # Recompute discarded rows from original by checking required columns
-    # For safety, create a small report of counts
     return df
 
 # -------------------------
@@ -369,7 +392,7 @@ def crear_dataset_ml(df: pd.DataFrame, config: AnalyzerConfig = CONFIG, test_siz
 # -------------------------
 def main():
     logger.info("Iniciando analyzer mejorado")
-    start = datetime.utcnow().isoformat()
+    start = datetime.now(timezone.utc).isoformat()
     df = cargar_datos(CONFIG)
     if df is None or df.empty:
         logger.error("No hay datos para analizar")
@@ -386,7 +409,7 @@ def main():
     # Guardar metadata del run
     meta = {
         'timestamp': start,
-        'finished': datetime.utcnow().isoformat(),
+        'finished': datetime.now(timezone.utc).isoformat(),
         'records': len(df_prepared),
         'config': asdict(CONFIG),
         'analysis_summary': {
