@@ -1,0 +1,38 @@
+{
+  "timestamp": "2025-12-20T19:02:44.105364+00:00",
+  "finished": "2025-12-20T19:02:48.854169+00:00",
+  "records": 897,
+  "config": {
+    "db_path": "data/supergana.db",
+    "table_name": "supergana_resultados",
+    "output_dir": "data/analysis",
+    "figures_dir": "data/analysis/figures",
+    "headless": true,
+    "shapiro_max": 5000,
+    "chi_bins": 20,
+    "rolling_windows": [
+      7,
+      30
+    ],
+    "uniformity_alpha": 0.05,
+    "random_state": 42,
+    "ml_target": "ultimo_digito",
+    "export_summaries": true,
+    "display_top_n": 20,
+    "log_level": "INFO",
+    "feature_columns": [
+      "hora_num",
+      "dia_semana",
+      "mes",
+      "dia_mes",
+      "suma_digitos",
+      "paridad",
+      "signo_cod",
+      "dias_desde_inicio"
+    ]
+  },
+  "analysis_summary": {
+    "chi2_p": 0.03400514572617383,
+    "normality_p": 2.2865345088777637e-16
+  }
+}

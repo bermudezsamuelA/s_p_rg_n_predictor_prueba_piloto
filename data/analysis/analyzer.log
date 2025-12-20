@@ -6,3 +6,21 @@
 2025-12-19 00:35:26,927 - INFO - Cargando datos desde data/supergana.db
 2025-12-19 00:35:26,950 - ERROR - Tabla supergana_resultados no encontrada en data/supergana.db
 2025-12-19 00:35:26,950 - ERROR - No hay datos para analizar
+2025-12-20 15:02:44,104 - INFO - Iniciando analyzer mejorado
+2025-12-20 15:02:44,105 - INFO - Cargando datos desde data/supergana.db
+2025-12-20 15:02:44,165 - INFO - Registros cargados: 897
+2025-12-20 15:02:44,454 - INFO - Datos preparados guardados en data\analysis\supergana_preparado.csv
+2025-12-20 15:02:44,454 - INFO - Iniciando análisis completo
+2025-12-20 15:02:44,509 - INFO - Resúmenes exportados a data/analysis
+2025-12-20 15:02:47,011 - INFO - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2025-12-20 15:02:47,021 - INFO - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2025-12-20 15:02:47,124 - INFO - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2025-12-20 15:02:47,133 - INFO - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2025-12-20 15:02:47,174 - INFO - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2025-12-20 15:02:47,182 - INFO - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2025-12-20 15:02:47,544 - INFO - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2025-12-20 15:02:47,554 - INFO - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2025-12-20 15:02:48,845 - INFO - Dashboard guardado en data\analysis\figures\supergana_dashboard.png
+2025-12-20 15:02:48,854 - INFO - Run metadata guardado
+2025-12-20 15:02:48,879 - INFO - Dataset ML creado: X_train (717, 8), X_test (180, 8)
+2025-12-20 15:02:48,880 - INFO - Análisis completado

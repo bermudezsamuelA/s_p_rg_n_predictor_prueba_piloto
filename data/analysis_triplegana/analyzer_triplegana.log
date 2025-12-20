@@ -2,3 +2,21 @@
 2025-12-19 00:35:51,461 - INFO - Cargando datos desde data/triplegana.db
 2025-12-19 00:35:51,463 - ERROR - Tabla triplegana_resultados no encontrada en data/triplegana.db
 2025-12-19 00:35:51,464 - ERROR - No hay datos para analizar
+2025-12-20 15:03:31,555 - INFO - Iniciando analyzer Triple Gana
+2025-12-20 15:03:31,556 - INFO - Cargando datos desde data/triplegana.db
+2025-12-20 15:03:31,560 - INFO - Registros cargados: 897
+2025-12-20 15:03:31,635 - INFO - Datos preparados guardados en data\analysis_triplegana\triplegana_preparado.csv
+2025-12-20 15:03:31,636 - INFO - Iniciando análisis completo Triple Gana
+2025-12-20 15:03:31,658 - INFO - Resúmenes exportados a data/analysis_triplegana
+2025-12-20 15:03:31,965 - INFO - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2025-12-20 15:03:31,973 - INFO - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2025-12-20 15:03:32,071 - INFO - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2025-12-20 15:03:32,078 - INFO - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2025-12-20 15:03:32,120 - INFO - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2025-12-20 15:03:32,127 - INFO - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2025-12-20 15:03:32,482 - INFO - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2025-12-20 15:03:32,489 - INFO - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2025-12-20 15:03:33,694 - INFO - Dashboard guardado en data\analysis_triplegana\figures\triplegana_dashboard.png
+2025-12-20 15:03:33,708 - INFO - Run metadata guardado
+2025-12-20 15:03:33,723 - INFO - Dataset ML creado: X_train (717, 7), X_test (180, 7)
+2025-12-20 15:03:33,726 - INFO - Análisis Triple Gana completado

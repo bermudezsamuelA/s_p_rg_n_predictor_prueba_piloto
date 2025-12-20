@@ -1,0 +1,48 @@
+{
+  "timestamp_start": "2025-12-20T19:03:31.556074+00:00",
+  "timestamp_end": "2025-12-20T19:03:33.707626+00:00",
+  "records": 897,
+  "config": {
+    "db_path": "data/triplegana.db",
+    "table_name": "triplegana_resultados",
+    "output_dir": "data/analysis_triplegana",
+    "figures_dir": "data/analysis_triplegana/figures",
+    "headless": true,
+    "shapiro_max": 5000,
+    "chi_bins": 20,
+    "rolling_windows": [
+      7,
+      30
+    ],
+    "uniformity_alpha": 0.05,
+    "random_state": 42,
+    "ml_target": "ultimo_digito",
+    "export_summaries": true,
+    "display_top_n": 20,
+    "log_level": "INFO",
+    "feature_columns": [
+      "hora_num",
+      "dia_semana",
+      "mes",
+      "suma_digitos",
+      "paridad",
+      "signo_cod",
+      "dias_desde_inicio"
+    ]
+  },
+  "summary": {
+    "chi2_p": 0.11912883573110795,
+    "ultimo_digito_top": {
+      "0": 86,
+      "1": 84,
+      "2": 97,
+      "3": 84,
+      "4": 91,
+      "5": 91,
+      "6": 87,
+      "7": 98,
+      "8": 89,
+      "9": 90
+    }
+  }
+}
